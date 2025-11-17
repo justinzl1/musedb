@@ -37,6 +37,8 @@ RETURNING track_id;
 
 -- UPDATE
 
+SELECT * FROM Album WHERE name = 'Bewitched';
+
 UPDATE Album
 SET 
     release_date = '2023-09-08',
