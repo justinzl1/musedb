@@ -4,6 +4,11 @@ import '../App.css';
 function Insert() {
   const [songName, setSongName] = useState('');
   const [artistName, setArtistName] = useState('');
+  const [artistDescription, setArtistDescription] = useState('');
+  const [nationName, setNationName] = useState('');
+  const [nationComment, setNationComment] = useState('');
+  const [genreName, setGenreName] = useState('');
+  const [genreDescription, setGenreDescription] = useState('');
   const [albumName, setAlbumName] = useState('');
   const [albumReleaseDate, setAlbumReleaseDate] = useState('');
   const [albumDescription, setAlbumDescription] = useState('');
@@ -33,6 +38,11 @@ function Insert() {
         body: JSON.stringify({
           song_name: songName.trim(),
           artist_name: artistName.trim(),
+          artist_description: artistDescription.trim() || null,
+          nation_name: nationName.trim() || null,
+          nation_comment: nationComment.trim() || null,
+          genre_name: genreName.trim() || null,
+          genre_description: genreDescription.trim() || null,
           album_name: albumName.trim(),
           album_release_date: albumReleaseDate.trim() || null,
           album_description: albumDescription.trim() || null,
@@ -51,6 +61,11 @@ function Insert() {
       // Reset form
       setSongName('');
       setArtistName('');
+      setArtistDescription('');
+      setNationName('');
+      setNationComment('');
+      setGenreName('');
+      setGenreDescription('');
       setAlbumName('');
       setAlbumReleaseDate('');
       setAlbumDescription('');
@@ -88,6 +103,61 @@ function Insert() {
               onChange={(e) => setArtistName(e.target.value)}
               placeholder="Enter artist name"
               required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="artist-description">Artist Description (optional):</label>
+            <input
+              id="artist-description"
+              type="text"
+              value={artistDescription}
+              onChange={(e) => setArtistDescription(e.target.value)}
+              placeholder="Enter artist description"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="nation-name">Nation Name (optional):</label>
+            <input
+              id="nation-name"
+              type="text"
+              value={nationName}
+              onChange={(e) => setNationName(e.target.value)}
+              placeholder="Enter nation name"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="nation-comment">Nation Comment (optional):</label>
+            <input
+              id="nation-comment"
+              type="text"
+              value={nationComment}
+              onChange={(e) => setNationComment(e.target.value)}
+              placeholder="Enter nation comment"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="genre-name">Genre Name (optional):</label>
+            <input
+              id="genre-name"
+              type="text"
+              value={genreName}
+              onChange={(e) => setGenreName(e.target.value)}
+              placeholder="Enter genre name"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="genre-description">Genre Description (optional):</label>
+            <input
+              id="genre-description"
+              type="text"
+              value={genreDescription}
+              onChange={(e) => setGenreDescription(e.target.value)}
+              placeholder="Enter genre description"
             />
           </div>
 

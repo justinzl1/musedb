@@ -684,31 +684,80 @@ def insert_music():
         album_description = data.get('album_description')
         track_length = data.get('track_length')
         
+        # New fields
+        nation_name = data.get('nation_name')
+        nation_comment = data.get('nation_comment')
+        artist_description = data.get('artist_description')
+        genre_name = data.get('genre_name')
+        genre_description = data.get('genre_description')
+        
         if not all([song_name, artist_name, album_name]):
             return jsonify({'error': 'Song name, artist name, and album name are required'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Handle Nation (Get or Create)
+        nation_id = None
+        if nation_name:
+            cursor.execute("SELECT nation_id FROM Nation WHERE name ILIKE %s;", (nation_name,))
+            nation_row = cursor.fetchone()
+            if nation_row:
+                nation_id = nation_row[0]
+            else:
+                cursor.execute(
+                    "INSERT INTO Nation (name, comment) VALUES (%s, %s) RETURNING nation_id;",
+                    (nation_name, nation_comment)
+                )
+                nation_id = cursor.fetchone()[0]
+        
         # Get or create artist
-        cursor.execute("SELECT artist_id FROM Artist WHERE name = %s;", (artist_name,))
+        cursor.execute("SELECT artist_id FROM Artist WHERE name ILIKE %s;", (artist_name,))
         artist_row = cursor.fetchone()
         if artist_row:
             artist_id = artist_row[0]
         else:
-            # Create new artist (need a nation_id - use first available or create a default)
-            cursor.execute("SELECT nation_id FROM Nation LIMIT 1;")
-            nation_row = cursor.fetchone()
-            if not nation_row:
-                return jsonify({'error': 'No nation found in database. Please add a nation first.'}), 400
+            # Create new artist
+            if not nation_id:
+                # If nation not provided in request, try to find one in DB
+                cursor.execute("SELECT nation_id FROM Nation LIMIT 1;")
+                nation_row = cursor.fetchone()
+                if not nation_row:
+                    return jsonify({'error': 'No nation found in database and none provided. Please add a nation.'}), 400
+                nation_id = nation_row[0]
+                
             cursor.execute(
-                "INSERT INTO Artist (name, nation_id) VALUES (%s, %s) RETURNING artist_id;",
-                (artist_name, nation_row[0])
+                "INSERT INTO Artist (name, description, nation_id) VALUES (%s, %s, %s) RETURNING artist_id;",
+                (artist_name, artist_description, nation_id)
             )
             artist_id = cursor.fetchone()[0]
+            
+        # Handle Genre (Get or Create and Link to Artist)
+        if genre_name:
+            cursor.execute("SELECT genre_id FROM Genre WHERE name ILIKE %s;", (genre_name,))
+            genre_row = cursor.fetchone()
+            if genre_row:
+                genre_id = genre_row[0]
+            else:
+                cursor.execute(
+                    "INSERT INTO Genre (name, description) VALUES (%s, %s) RETURNING genre_id;",
+                    (genre_name, genre_description)
+                )
+                genre_id = cursor.fetchone()[0]
+            
+            # Link Artist to Genre
+            cursor.execute(
+                "SELECT 1 FROM ArtistGenre WHERE artist_id = %s AND genre_id = %s;",
+                (artist_id, genre_id)
+            )
+            if not cursor.fetchone():
+                cursor.execute(
+                    "INSERT INTO ArtistGenre (artist_id, genre_id) VALUES (%s, %s);",
+                    (artist_id, genre_id)
+                )
         
         # Get or create album
-        cursor.execute("SELECT album_id FROM Album WHERE name = %s;", (album_name,))
+        cursor.execute("SELECT album_id FROM Album WHERE name ILIKE %s;", (album_name,))
         album_row = cursor.fetchone()
         if album_row:
             album_id = album_row[0]
@@ -730,25 +779,42 @@ def insert_music():
                 (artist_id, album_id)
             )
         
-        # Create track
+        # Check if track already exists in this album
         cursor.execute(
-            "INSERT INTO Track (name, length, album_id) VALUES (%s, %s, %s) RETURNING track_id;",
-            (song_name, track_length if track_length else None, album_id)
+            "SELECT track_id FROM Track WHERE name ILIKE %s AND album_id = %s;",
+            (song_name, album_id)
         )
-        track_id = cursor.fetchone()[0]
+        track_row = cursor.fetchone()
         
-        # Link artist to track
+        if track_row:
+            track_id = track_row[0]
+            message = 'Song already exists in album'
+        else:
+            # Create track
+            cursor.execute(
+                "INSERT INTO Track (name, length, album_id) VALUES (%s, %s, %s) RETURNING track_id;",
+                (song_name, track_length if track_length else None, album_id)
+            )
+            track_id = cursor.fetchone()[0]
+            message = 'Song inserted successfully'
+        
+        # Link artist to track if not already linked
         cursor.execute(
-            "INSERT INTO ArtistTrack (artist_id, track_id) VALUES (%s, %s);",
+            "SELECT 1 FROM ArtistTrack WHERE artist_id = %s AND track_id = %s;",
             (artist_id, track_id)
         )
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO ArtistTrack (artist_id, track_id) VALUES (%s, %s);",
+                (artist_id, track_id)
+            )
         
         conn.commit()
         cursor.close()
         
         return jsonify({
             'success': True,
-            'message': 'Song inserted successfully',
+            'message': message,
             'track_id': track_id
         })
         
