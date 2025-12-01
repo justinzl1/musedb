@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import '../App.css';
 
+// Search music page
 function Search() {
   const [searchQuery, setSearchQuery] = useState('');
   const [results, setResults] = useState(null);
@@ -41,7 +42,7 @@ function Search() {
       setLoading(false);
     }
   };
-
+  // Render search form and results
   return (
     <main className="main-content">
       <h2>Search Music</h2>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import '../App.css';
 
+// View all tracks with their associated artists and albums
 function ViewAllData() {
   const [joinedData, setJoinedData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -21,10 +22,9 @@ function ViewAllData() {
       const data = await response.json();
       
       if (newOffset === 0) {
-        // First load - replace data
+
         setJoinedData(data);
       } else {
-        // Load more - append to existing data
         setJoinedData(prev => ({
           ...prev,
           results: [...prev.results, ...data.results],
@@ -44,7 +44,7 @@ function ViewAllData() {
   const handleShowMore = () => {
     fetchJoinedData(offset);
   };
-
+  // Render joined data view
   return (
     <main className="main-content">
       <h2>Tracks with Artists & Albums</h2>

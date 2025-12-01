@@ -6,6 +6,7 @@ import Insert from './pages/Insert';
 import Delete from './pages/Delete';
 import './App.css';
 
+// Navigation component
 function Navigation() {
   const location = useLocation();
 
@@ -15,7 +16,7 @@ function Navigation() {
     { path: '/insert', label: 'Insert' },
     { path: '/delete', label: 'Delete' },
   ];
-
+  // Render navigation links
   return (
     <nav className="navigation">
       <ul className="nav-list">

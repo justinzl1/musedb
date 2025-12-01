@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import '../App.css';
 
+// Delete song or artist or album page
 function Delete() {
   const [deleteType, setDeleteType] = useState('song');
   const [deleteValue, setDeleteValue] = useState('');
@@ -8,7 +9,7 @@ function Delete() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-
+  // Preview records to be deleted
   const handlePreview = async () => {
     if (!deleteValue.trim()) {
       setError('Please enter a name to search for');
@@ -28,12 +29,11 @@ function Delete() {
           value: deleteValue.trim(),
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Preview failed');
       }
-
+      // Get preview data
       const data = await response.json();
       setPreviewData(data);
     } catch (err) {
@@ -60,7 +60,7 @@ function Delete() {
     
     let confirmMessage = '';
     if (isCascading) {
-      confirmMessage = `Warning: Deleting this ${deleteType} will also delete ${previewData.affected_count - 1} related record(s) (tracks, albums, etc.) due to cascading deletes. Are you sure you want to proceed?`;
+      confirmMessage = `Warning: Deleting this ${deleteType} will also delete ${previewData.affected_count - 1} related record(s) due to cascading deletes. Are you sure you want to proceed?`;
     } else {
       confirmMessage = `Are you sure you want to delete this ${deleteType}? This action cannot be undone.`;
     }
@@ -100,7 +100,7 @@ function Delete() {
       setLoading(false);
     }
   };
-
+  // Render delete form and preview table
   return (
     <main className="main-content">
       <h2>Delete Data</h2>

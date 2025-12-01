@@ -19,11 +19,11 @@ fi
 echo "Testing connection..."
 if nc -vz aws-1-us-east-2.pooler.supabase.com 5432; then
     echo ""
-    echo "✅ SUCCESS: Server is up and accepting connections!"
+    echo "SUCCESS: Server is up and accepting connections!"
     echo "The database server is reachable and the port is open."
 else
     echo ""
-    echo "❌ FAILED: Server is not responding"
+    echo "FAILED: Server is not responding"
     echo ""
     echo "Possible reasons:"
     echo "1. Database is paused (check Supabase dashboard)"

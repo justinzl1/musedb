@@ -76,7 +76,7 @@ function Insert() {
       setLoading(false);
     }
   };
-
+  // Render insert form
   return (
     <main className="main-content">
       <h2>Insert Data</h2>
