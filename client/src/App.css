@@ -6,7 +6,7 @@
 .app-header {
   background: rgba(255, 255, 255, 0.95);
   padding: 30px;
-  border-radius: 12px;
+  border-radius: 0;
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
@@ -33,7 +33,7 @@
   flex: 0 0 250px;
   background: rgba(255, 255, 255, 0.95);
   padding: 20px;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   height: fit-content;
 }
@@ -52,7 +52,7 @@
   padding: 12px 15px;
   margin-bottom: 8px;
   background: #f5f5f5;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 500;
@@ -74,7 +74,7 @@
   flex: 1;
   background: rgba(255, 255, 255, 0.95);
   padding: 30px;
-  border-radius: 12px;
+  border-radius: 0;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   position: relative;
 }
@@ -99,7 +99,7 @@
 
 .table-wrapper {
   overflow-x: auto;
-  border-radius: 8px;
+  border-radius: 0;
   border: 1px solid #e0e0e0;
 }
 
@@ -169,7 +169,7 @@ tbody tr:last-child td {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: 0;
 }
 
 .error-message {
@@ -189,7 +189,7 @@ tbody tr:last-child td {
   background: #008000;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 1em;
   font-weight: 500;
@@ -204,7 +204,7 @@ tbody tr:last-child td {
   color: #d32f2f;
   padding: 10px;
   background: #ffebee;
-  border-radius: 6px;
+  border-radius: 0;
   margin-bottom: 10px;
   font-size: 0.9em;
 }
@@ -213,7 +213,7 @@ tbody tr:last-child td {
 .navigation {
   background: rgba(255, 255, 255, 0.95);
   padding: 15px 30px;
-  border-radius: 12px;
+  border-radius: 0;
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -230,7 +230,7 @@ tbody tr:last-child td {
   padding: 10px 20px;
   text-decoration: none;
   color: #555;
-  border-radius: 6px;
+  border-radius: 0;
   font-weight: 500;
   transition: all 0.2s;
   display: block;
@@ -252,7 +252,7 @@ tbody tr:last-child td {
 .delete-form {
   background: #f9f9f9;
   padding: 25px;
-  border-radius: 8px;
+  border-radius: 0;
   margin-bottom: 20px;
 }
 
@@ -273,7 +273,7 @@ tbody tr:last-child td {
   width: 100%;
   padding: 10px 15px;
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 1em;
   transition: border-color 0.2s;
   box-sizing: border-box;
@@ -304,7 +304,7 @@ tbody tr:last-child td {
   background: #008000;
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 1em;
   font-weight: 500;
@@ -328,7 +328,7 @@ tbody tr:last-child td {
   color: white;
   padding: 12px 30px;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
   font-size: 1em;
   font-weight: 500;
@@ -355,7 +355,7 @@ tbody tr:last-child td {
   background: #e8f5e9;
   color: #2e7d32;
   padding: 15px 20px;
-  border-radius: 6px;
+  border-radius: 0;
   margin-top: 20px;
   font-weight: 500;
 }
@@ -370,7 +370,7 @@ tbody tr:last-child td {
   margin-bottom: 20px;
   padding: 15px;
   background: #f5f5f5;
-  border-radius: 6px;
+  border-radius: 0;
 }
 
 .preview-info p {
@@ -415,7 +415,7 @@ tbody tr:last-child td {
   flex: 1;
   padding: 15px 20px;
   border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 1.1em;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -431,7 +431,7 @@ tbody tr:last-child td {
   background: #008000;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 1.1em;
   font-weight: 500;
   cursor: pointer;
@@ -461,7 +461,7 @@ tbody tr:last-child td {
 .music-result-card {
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 20px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -492,7 +492,7 @@ tbody tr:last-child td {
   font-size: 0.9em;
   background: #e8e8e8;
   padding: 5px 12px;
-  border-radius: 20px;
+  border-radius: 0;
 }
 
 .music-result-details {
@@ -560,7 +560,7 @@ tbody tr:last-child td {
 .joined-result-card {
   background: #f9f9f9;
   border: 1px solid #e0e0e0;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 25px;
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -591,7 +591,7 @@ tbody tr:last-child td {
   font-size: 0.9em;
   background: #e8e8e8;
   padding: 5px 12px;
-  border-radius: 20px;
+  border-radius: 0;
   white-space: nowrap;
 }
 
@@ -624,7 +624,7 @@ tbody tr:last-child td {
   background: #008000;
   color: white;
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: 0;
   font-size: 0.9em;
   font-weight: 500;
 }
@@ -677,7 +677,7 @@ tbody tr:last-child td {
   background: #008000;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 1em;
   font-weight: 500;
   cursor: pointer;

@@ -804,20 +804,29 @@ def delete_preview():
             
             artist_ids = [a[0] for a in artists]
             
-            # Count tracks, albums, etc. that will be deleted
+            # Count tracks associated with this artist
             cursor.execute(
-                "SELECT COUNT(*) FROM Track t INNER JOIN ArtistTrack at ON t.track_id = at.track_id WHERE at.artist_id = ANY(%s);",
+                "SELECT COUNT(DISTINCT t.track_id) FROM Track t INNER JOIN ArtistTrack at ON t.track_id = at.track_id WHERE at.artist_id = ANY(%s);",
                 (artist_ids,)
             )
             track_count = cursor.fetchone()[0]
             
+            # Count albums associated with this artist
             cursor.execute(
-                "SELECT COUNT(*) FROM Album a INNER JOIN ArtistAlbum aa ON a.album_id = aa.album_id WHERE aa.artist_id = ANY(%s);",
+                "SELECT COUNT(DISTINCT a.album_id) FROM Album a INNER JOIN ArtistAlbum aa ON a.album_id = aa.album_id WHERE aa.artist_id = ANY(%s);",
                 (artist_ids,)
             )
             album_count = cursor.fetchone()[0]
             
-            affected_count = len(artists) + track_count + album_count
+            # Count tracks in those albums (will be deleted when albums are deleted)
+            cursor.execute(
+                "SELECT COUNT(*) FROM Track t INNER JOIN Album a ON t.album_id = a.album_id INNER JOIN ArtistAlbum aa ON a.album_id = aa.album_id WHERE aa.artist_id = ANY(%s);",
+                (artist_ids,)
+            )
+            album_track_count = cursor.fetchone()[0]
+            
+            # Total affected: artists + albums + tracks (tracks from ArtistTrack + tracks from albums)
+            affected_count = len(artists) + album_count + track_count + album_track_count
             
             query = "SELECT * FROM Artist WHERE name ILIKE %s;"
             cursor.execute(query, (f'%{delete_value}%',))
@@ -825,7 +834,7 @@ def delete_preview():
             rows = cursor.fetchall()
             
         elif delete_type == 'album':
-            # Get album and count related tracks
+            # Get album and count related tracks (will be cascade deleted)
             cursor.execute("SELECT album_id FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
             albums = cursor.fetchall()
             if not albums:
@@ -837,12 +846,14 @@ def delete_preview():
             
             album_ids = [a[0] for a in albums]
             
+            # Count tracks that will be cascade deleted
             cursor.execute(
                 "SELECT COUNT(*) FROM Track WHERE album_id = ANY(%s);",
                 (album_ids,)
             )
             track_count = cursor.fetchone()[0]
             
+            # Total: albums + tracks (tracks will be cascade deleted)
             affected_count = len(albums) + track_count
             
             query = "SELECT * FROM Album WHERE name ILIKE %s;"
@@ -899,10 +910,53 @@ def delete_music():
             deleted_count = cursor.rowcount
             
         elif delete_type == 'artist':
-            cursor.execute("DELETE FROM Artist WHERE name ILIKE %s;", (f'%{delete_value}%',))
-            deleted_count = cursor.rowcount
+            # First, get the artist IDs
+            cursor.execute("SELECT artist_id FROM Artist WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            artist_ids = [row[0] for row in cursor.fetchall()]
+            
+            if artist_ids:
+                # Get album IDs associated with this artist (before deletion)
+                cursor.execute(
+                    "SELECT DISTINCT album_id FROM ArtistAlbum WHERE artist_id = ANY(%s);",
+                    (artist_ids,)
+                )
+                album_ids = [row[0] for row in cursor.fetchall()]
+                
+                # Delete all tracks associated with this artist that are NOT in albums we're deleting
+                # (tracks in albums will be cascade deleted when we delete albums)
+                if album_ids:
+                    cursor.execute(
+                        """DELETE FROM Track 
+                           WHERE track_id IN (SELECT track_id FROM ArtistTrack WHERE artist_id = ANY(%s))
+                           AND album_id NOT IN (SELECT unnest(%s::int[]));""",
+                        (artist_ids, album_ids)
+                    )
+                else:
+                    # No albums, so delete all tracks associated with this artist
+                    cursor.execute(
+                        "DELETE FROM Track WHERE track_id IN (SELECT track_id FROM ArtistTrack WHERE artist_id = ANY(%s));",
+                        (artist_ids,)
+                    )
+                tracks_deleted = cursor.rowcount
+                
+                # Delete all albums associated with this artist (this will cascade delete tracks in those albums)
+                if album_ids:
+                    cursor.execute(
+                        "DELETE FROM Album WHERE album_id = ANY(%s);",
+                        (album_ids,)
+                    )
+                    albums_deleted = cursor.rowcount
+                else:
+                    albums_deleted = 0
+                
+                # Now delete the artist (this will cascade delete ArtistTrack and ArtistAlbum relationships)
+                cursor.execute("DELETE FROM Artist WHERE artist_id = ANY(%s);", (artist_ids,))
+                artists_deleted = cursor.rowcount
+                
+                deleted_count = artists_deleted + albums_deleted + tracks_deleted
             
         elif delete_type == 'album':
+            # Delete album - this will cascade delete tracks due to ON DELETE CASCADE
             cursor.execute("DELETE FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
             deleted_count = cursor.rowcount
         else:
