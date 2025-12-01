@@ -44,7 +44,7 @@ function App() {
     <Router>
       <div className="app">
         <header className="app-header">
-          <h1>🎵 MuseDB Database Manager</h1>
+          <h1>MuseDB Database Manager</h1>
           <p>Manage your music database</p>
         </header>
         <Navigation />

@@ -668,8 +668,269 @@ def delete_data():
     finally:
         release_db_connection(conn)
 
+@app.route('/api/insert/music', methods=['POST'])
+def insert_music():
+    """Insert a song with artist and album"""
+    conn = None
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        song_name = data.get('song_name')
+        artist_name = data.get('artist_name')
+        album_name = data.get('album_name')
+        album_release_date = data.get('album_release_date')
+        album_description = data.get('album_description')
+        track_length = data.get('track_length')
+        
+        if not all([song_name, artist_name, album_name]):
+            return jsonify({'error': 'Song name, artist name, and album name are required'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get or create artist
+        cursor.execute("SELECT artist_id FROM Artist WHERE name = %s;", (artist_name,))
+        artist_row = cursor.fetchone()
+        if artist_row:
+            artist_id = artist_row[0]
+        else:
+            # Create new artist (need a nation_id - use first available or create a default)
+            cursor.execute("SELECT nation_id FROM Nation LIMIT 1;")
+            nation_row = cursor.fetchone()
+            if not nation_row:
+                return jsonify({'error': 'No nation found in database. Please add a nation first.'}), 400
+            cursor.execute(
+                "INSERT INTO Artist (name, nation_id) VALUES (%s, %s) RETURNING artist_id;",
+                (artist_name, nation_row[0])
+            )
+            artist_id = cursor.fetchone()[0]
+        
+        # Get or create album
+        cursor.execute("SELECT album_id FROM Album WHERE name = %s;", (album_name,))
+        album_row = cursor.fetchone()
+        if album_row:
+            album_id = album_row[0]
+        else:
+            cursor.execute(
+                "INSERT INTO Album (name, release_date, description) VALUES (%s, %s, %s) RETURNING album_id;",
+                (album_name, album_release_date if album_release_date else None, album_description if album_description else None)
+            )
+            album_id = cursor.fetchone()[0]
+        
+        # Link artist to album if not already linked
+        cursor.execute(
+            "SELECT 1 FROM ArtistAlbum WHERE artist_id = %s AND album_id = %s;",
+            (artist_id, album_id)
+        )
+        if not cursor.fetchone():
+            cursor.execute(
+                "INSERT INTO ArtistAlbum (artist_id, album_id) VALUES (%s, %s);",
+                (artist_id, album_id)
+            )
+        
+        # Create track
+        cursor.execute(
+            "INSERT INTO Track (name, length, album_id) VALUES (%s, %s, %s) RETURNING track_id;",
+            (song_name, track_length if track_length else None, album_id)
+        )
+        track_id = cursor.fetchone()[0]
+        
+        # Link artist to track
+        cursor.execute(
+            "INSERT INTO ArtistTrack (artist_id, track_id) VALUES (%s, %s);",
+            (artist_id, track_id)
+        )
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Song inserted successfully',
+            'track_id': track_id
+        })
+        
+    except psycopg2.IntegrityError as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': f'Database constraint violation: {str(e)}'}), 400
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f'Error inserting music: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+    finally:
+        release_db_connection(conn)
+
+@app.route('/api/delete/preview', methods=['POST'])
+def delete_preview():
+    """Preview what will be deleted"""
+    conn = None
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        delete_type = data.get('type')
+        delete_value = data.get('value')
+        
+        if not all([delete_type, delete_value]):
+            return jsonify({'error': 'Missing type or value'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if delete_type == 'song':
+            query = "SELECT * FROM Track WHERE name ILIKE %s;"
+            cursor.execute(query, (f'%{delete_value}%',))
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            
+            # Count affected records (just the track)
+            affected_count = len(rows)
+            
+        elif delete_type == 'artist':
+            # Get artist and count all related records
+            cursor.execute("SELECT artist_id FROM Artist WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            artists = cursor.fetchall()
+            if not artists:
+                return jsonify({
+                    'columns': [],
+                    'rows': [],
+                    'affected_count': 0
+                })
+            
+            artist_ids = [a[0] for a in artists]
+            
+            # Count tracks, albums, etc. that will be deleted
+            cursor.execute(
+                "SELECT COUNT(*) FROM Track t INNER JOIN ArtistTrack at ON t.track_id = at.track_id WHERE at.artist_id = ANY(%s);",
+                (artist_ids,)
+            )
+            track_count = cursor.fetchone()[0]
+            
+            cursor.execute(
+                "SELECT COUNT(*) FROM Album a INNER JOIN ArtistAlbum aa ON a.album_id = aa.album_id WHERE aa.artist_id = ANY(%s);",
+                (artist_ids,)
+            )
+            album_count = cursor.fetchone()[0]
+            
+            affected_count = len(artists) + track_count + album_count
+            
+            query = "SELECT * FROM Artist WHERE name ILIKE %s;"
+            cursor.execute(query, (f'%{delete_value}%',))
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            
+        elif delete_type == 'album':
+            # Get album and count related tracks
+            cursor.execute("SELECT album_id FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            albums = cursor.fetchall()
+            if not albums:
+                return jsonify({
+                    'columns': [],
+                    'rows': [],
+                    'affected_count': 0
+                })
+            
+            album_ids = [a[0] for a in albums]
+            
+            cursor.execute(
+                "SELECT COUNT(*) FROM Track WHERE album_id = ANY(%s);",
+                (album_ids,)
+            )
+            track_count = cursor.fetchone()[0]
+            
+            affected_count = len(albums) + track_count
+            
+            query = "SELECT * FROM Album WHERE name ILIKE %s;"
+            cursor.execute(query, (f'%{delete_value}%',))
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+        else:
+            return jsonify({'error': 'Invalid delete type'}), 400
+        
+        # Convert rows to dictionaries
+        data_list = []
+        for row in rows:
+            row_dict = {}
+            for col, val in zip(columns, row):
+                row_dict[col] = serialize_value(val)
+            data_list.append(row_dict)
+        
+        cursor.close()
+        
+        return jsonify({
+            'columns': columns,
+            'rows': data_list,
+            'affected_count': affected_count
+        })
+        
+    except Exception as e:
+        print(f'Error previewing delete: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+    finally:
+        release_db_connection(conn)
+
+@app.route('/api/delete/music', methods=['DELETE'])
+def delete_music():
+    """Delete a song, artist, or album"""
+    conn = None
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        delete_type = data.get('type')
+        delete_value = data.get('value')
+        
+        if not all([delete_type, delete_value]):
+            return jsonify({'error': 'Missing type or value'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        deleted_count = 0
+        
+        if delete_type == 'song':
+            cursor.execute("DELETE FROM Track WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            deleted_count = cursor.rowcount
+            
+        elif delete_type == 'artist':
+            cursor.execute("DELETE FROM Artist WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            deleted_count = cursor.rowcount
+            
+        elif delete_type == 'album':
+            cursor.execute("DELETE FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
+            deleted_count = cursor.rowcount
+        else:
+            return jsonify({'error': 'Invalid delete type'}), 400
+        
+        conn.commit()
+        cursor.close()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Deleted {deleted_count} record(s)',
+            'deleted_count': deleted_count
+        })
+        
+    except psycopg2.IntegrityError as e:
+        if conn:
+            conn.rollback()
+        return jsonify({'error': f'Cannot delete due to constraint: {str(e)}'}), 400
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f'Error deleting music: {str(e)}')
+        return jsonify({'error': str(e)}), 500
+    finally:
+        release_db_connection(conn)
+
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 3001))
-    print(f'🚀 Server running on http://localhost:{port}')
+    print(f'Server running on http://localhost:{port}')
     app.run(host='0.0.0.0', port=port, debug=True)
 

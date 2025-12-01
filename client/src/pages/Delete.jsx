@@ -1,79 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import '../App.css';
 
 function Delete() {
-  const [tables, setTables] = useState([]);
-  const [selectedTable, setSelectedTable] = useState('');
-  const [columns, setColumns] = useState([]);
-  const [deleteColumn, setDeleteColumn] = useState('');
+  const [deleteType, setDeleteType] = useState('song');
   const [deleteValue, setDeleteValue] = useState('');
   const [previewData, setPreviewData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  useEffect(() => {
-    fetchTables();
-  }, []);
-
-  useEffect(() => {
-    if (selectedTable) {
-      fetchColumns(selectedTable);
-    } else {
-      setColumns([]);
-      setDeleteColumn('');
-      setPreviewData(null);
-    }
-  }, [selectedTable]);
-
-  const fetchTables = async () => {
-    try {
-      const response = await fetch('/api/tables');
-      if (!response.ok) throw new Error('Failed to fetch tables');
-      const data = await response.json();
-      setTables(data);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const fetchColumns = async (tableName) => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/tables/${tableName}`);
-      if (!response.ok) throw new Error('Failed to fetch columns');
-      const data = await response.json();
-      setColumns(data.columns);
-      if (data.columns.length > 0) {
-        setDeleteColumn(data.columns[0]);
-      }
-      setPreviewData(null);
-      setError(null);
-      setSuccess(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handlePreview = async () => {
-    if (!selectedTable || !deleteColumn || !deleteValue.trim()) {
-      setError('Please select a table, column, and enter a value');
+    if (!deleteValue.trim()) {
+      setError('Please enter a name to search for');
       return;
     }
 
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/search', {
+      const response = await fetch('/api/delete/preview', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          table: selectedTable,
-          column: deleteColumn,
+          type: deleteType,
           value: deleteValue.trim(),
         }),
       });
@@ -94,12 +45,27 @@ function Delete() {
   };
 
   const handleDelete = async () => {
-    if (!selectedTable || !deleteColumn || !deleteValue.trim()) {
-      setError('Please select a table, column, and enter a value');
+    if (!deleteValue.trim()) {
+      setError('Please enter a name to delete');
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to delete ${previewData?.rows.length || 0} record(s)? This action cannot be undone.`)) {
+    if (!previewData) {
+      setError('Please preview records first');
+      return;
+    }
+
+    // Check if this is a cascading delete (artist or album with multiple entries)
+    const isCascading = (deleteType === 'artist' || deleteType === 'album') && previewData.affected_count > 1;
+    
+    let confirmMessage = '';
+    if (isCascading) {
+      confirmMessage = `Warning: Deleting this ${deleteType} will also delete ${previewData.affected_count - 1} related record(s) (tracks, albums, etc.) due to cascading deletes. Are you sure you want to proceed?`;
+    } else {
+      confirmMessage = `Are you sure you want to delete this ${deleteType}? This action cannot be undone.`;
+    }
+
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -108,14 +74,13 @@ function Delete() {
       setError(null);
       setSuccess(null);
 
-      const response = await fetch('/api/delete', {
+      const response = await fetch('/api/delete/music', {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          table: selectedTable,
-          column: deleteColumn,
+          type: deleteType,
           value: deleteValue.trim(),
         }),
       });
@@ -126,7 +91,7 @@ function Delete() {
       }
 
       const result = await response.json();
-      setSuccess(`Successfully deleted ${result.deleted_count} record(s) from ${selectedTable}`);
+      setSuccess(`Successfully deleted ${result.deleted_count} record(s)`);
       setPreviewData(null);
       setDeleteValue('');
     } catch (err) {
@@ -140,62 +105,43 @@ function Delete() {
     <div className="app-container">
       <main className="main-content" style={{ maxWidth: '100%' }}>
         <h2>Delete Data</h2>
-        <p style={{ color: '#d32f2f', marginBottom: '20px', fontWeight: '500' }}>
-          ⚠️ Warning: This action cannot be undone. Please preview records before deleting.
+        <p style={{ color: '#d32f2f', marginBottom: '20px' }}>
+          Warning: This action cannot be undone. Please preview records before deleting.
         </p>
         
         <form onSubmit={(e) => { e.preventDefault(); handlePreview(); }} className="delete-form">
           <div className="form-group">
-            <label htmlFor="table-select">Select Table:</label>
+            <label htmlFor="delete-type">Delete Type:</label>
             <select
-              id="table-select"
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
+              id="delete-type"
+              value={deleteType}
+              onChange={(e) => {
+                setDeleteType(e.target.value);
+                setPreviewData(null);
+                setDeleteValue('');
+              }}
               required
             >
-              <option value="">-- Select a table --</option>
-              {tables.map((table) => (
-                <option key={table} value={table}>
-                  {table}
-                </option>
-              ))}
+              <option value="song">Song</option>
+              <option value="artist">Artist</option>
+              <option value="album">Album</option>
             </select>
           </div>
 
-          {selectedTable && columns.length > 0 && (
-            <>
-              <div className="form-group">
-                <label htmlFor="column-select">Delete By Column:</label>
-                <select
-                  id="column-select"
-                  value={deleteColumn}
-                  onChange={(e) => setDeleteColumn(e.target.value)}
-                  required
-                >
-                  {columns.map((column) => (
-                    <option key={column} value={column}>
-                      {column}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="delete-value">Value to Match:</label>
-                <input
-                  id="delete-value"
-                  type="text"
-                  value={deleteValue}
-                  onChange={(e) => setDeleteValue(e.target.value)}
-                  placeholder="Enter value to match..."
-                  required
-                />
-              </div>
-            </>
-          )}
+          <div className="form-group">
+            <label htmlFor="delete-value">Name:</label>
+            <input
+              id="delete-value"
+              type="text"
+              value={deleteValue}
+              onChange={(e) => setDeleteValue(e.target.value)}
+              placeholder={`Enter ${deleteType} name...`}
+              required
+            />
+          </div>
 
           <div className="button-group">
-            <button type="button" onClick={handlePreview} className="preview-button" disabled={loading || !selectedTable}>
+            <button type="button" onClick={handlePreview} className="preview-button" disabled={loading || !deleteValue.trim()}>
               {loading ? 'Loading...' : 'Preview Records'}
             </button>
           </div>
@@ -215,9 +161,17 @@ function Delete() {
 
         {previewData && (
           <div className="table-viewer" style={{ marginTop: '30px' }}>
-            <h3>Records to be Deleted ({previewData.rows.length})</h3>
-            {previewData.rows.length > 0 ? (
+            <h3>Records to be Deleted</h3>
+            {previewData.affected_count > 0 ? (
               <>
+                <div className="preview-info">
+                  <p>This will delete {previewData.affected_count} record(s).</p>
+                  {(deleteType === 'artist' || deleteType === 'album') && previewData.affected_count > 1 && (
+                    <p style={{ color: '#d32f2f', fontWeight: 'bold' }}>
+                      Warning: This will also delete related records due to cascading deletes.
+                    </p>
+                  )}
+                </div>
                 <div className="table-wrapper">
                   <table>
                     <thead>
@@ -243,7 +197,7 @@ function Delete() {
                   </table>
                 </div>
                 <button onClick={handleDelete} className="delete-button" disabled={loading}>
-                  {loading ? 'Deleting...' : `Delete ${previewData.rows.length} Record(s)`}
+                  {loading ? 'Deleting...' : 'Delete Record(s)'}
                 </button>
               </>
             ) : (
@@ -259,4 +213,3 @@ function Delete() {
 }
 
 export default Delete;
-

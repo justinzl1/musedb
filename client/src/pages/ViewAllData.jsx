@@ -48,7 +48,7 @@ function ViewAllData() {
   return (
     <div className="app-container">
       <main className="main-content" style={{ maxWidth: '100%' }}>
-        <h2>🎵 Tracks with Artists & Albums</h2>
+        <h2>Tracks with Artists & Albums</h2>
         <p style={{ color: '#666', marginBottom: '20px' }}>
           View all tracks with their associated artists and album information
         </p>
@@ -89,7 +89,7 @@ function ViewAllData() {
                       
                       <div className="joined-result-content">
                         <div className="joined-result-section">
-                          <span className="joined-section-label">🎤 Artist(s):</span>
+                          <span className="joined-section-label">Artist(s):</span>
                           <div className="joined-artists-list">
                             {item.artists && item.artists.length > 0 ? (
                               item.artists.map((artist, artistIdx) => (
@@ -105,7 +105,7 @@ function ViewAllData() {
                         </div>
 
                         <div className="joined-result-section">
-                          <span className="joined-section-label">💿 Album:</span>
+                          <span className="joined-section-label">Album:</span>
                           <div className="joined-album-info">
                             <span className="joined-album-name">{item.album_name || 'Unknown'}</span>
                             {item.album_release_date && (

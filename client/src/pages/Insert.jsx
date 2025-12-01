@@ -1,85 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import '../App.css';
 
 function Insert() {
-  const [tables, setTables] = useState([]);
-  const [selectedTable, setSelectedTable] = useState('');
-  const [columns, setColumns] = useState([]);
-  const [formData, setFormData] = useState({});
+  const [songName, setSongName] = useState('');
+  const [artistName, setArtistName] = useState('');
+  const [albumName, setAlbumName] = useState('');
+  const [albumReleaseDate, setAlbumReleaseDate] = useState('');
+  const [albumDescription, setAlbumDescription] = useState('');
+  const [trackLength, setTrackLength] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
-  useEffect(() => {
-    fetchTables();
-  }, []);
-
-  useEffect(() => {
-    if (selectedTable) {
-      fetchColumns(selectedTable);
-    } else {
-      setColumns([]);
-      setFormData({});
-    }
-  }, [selectedTable]);
-
-  const fetchTables = async () => {
-    try {
-      const response = await fetch('/api/tables');
-      if (!response.ok) throw new Error('Failed to fetch tables');
-      const data = await response.json();
-      setTables(data);
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const fetchColumns = async (tableName) => {
-    try {
-      setLoading(true);
-      // First get column info to check for identity columns
-      const response = await fetch(`/api/tables/${tableName}`);
-      if (!response.ok) throw new Error('Failed to fetch columns');
-      const data = await response.json();
-      
-      // Get column metadata to identify identity columns
-      const metaResponse = await fetch(`/api/tables/${tableName}/columns`);
-      let identityColumns = [];
-      if (metaResponse.ok) {
-        const metaData = await metaResponse.json();
-        identityColumns = metaData.filter(col => col.is_identity).map(col => col.column_name);
-      }
-      
-      // Filter out identity columns from the form
-      const editableColumns = data.columns.filter(col => !identityColumns.includes(col));
-      setColumns(editableColumns);
-      
-      // Initialize form data with empty values for editable columns only
-      const initialData = {};
-      editableColumns.forEach((col) => {
-        initialData[col] = '';
-      });
-      setFormData(initialData);
-      setError(null);
-      setSuccess(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleInputChange = (column, value) => {
-    setFormData((prev) => ({
-      ...prev,
-      [column]: value,
-    }));
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedTable) {
-      setError('Please select a table');
+    
+    if (!songName.trim() || !artistName.trim() || !albumName.trim()) {
+      setError('Song name, artist name, and album name are required');
       return;
     }
 
@@ -88,21 +25,18 @@ function Insert() {
       setError(null);
       setSuccess(null);
 
-      // Prepare data - convert empty strings to null for optional fields
-      const insertData = {};
-      columns.forEach((col) => {
-        const value = formData[col];
-        insertData[col] = value === '' ? null : value;
-      });
-
-      const response = await fetch('/api/insert', {
+      const response = await fetch('/api/insert/music', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          table: selectedTable,
-          data: insertData,
+          song_name: songName.trim(),
+          artist_name: artistName.trim(),
+          album_name: albumName.trim(),
+          album_release_date: albumReleaseDate.trim() || null,
+          album_description: albumDescription.trim() || null,
+          track_length: trackLength.trim() || null,
         }),
       });
 
@@ -112,14 +46,15 @@ function Insert() {
       }
 
       const result = await response.json();
-      setSuccess(`Successfully inserted record into ${selectedTable}`);
+      setSuccess('Successfully added song to database');
       
       // Reset form
-      const resetData = {};
-      columns.forEach((col) => {
-        resetData[col] = '';
-      });
-      setFormData(resetData);
+      setSongName('');
+      setArtistName('');
+      setAlbumName('');
+      setAlbumReleaseDate('');
+      setAlbumDescription('');
+      setTrackLength('');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -134,46 +69,75 @@ function Insert() {
         
         <form onSubmit={handleSubmit} className="insert-form">
           <div className="form-group">
-            <label htmlFor="table-select">Select Table:</label>
-            <select
-              id="table-select"
-              value={selectedTable}
-              onChange={(e) => setSelectedTable(e.target.value)}
+            <label htmlFor="song-name">Song Name:</label>
+            <input
+              id="song-name"
+              type="text"
+              value={songName}
+              onChange={(e) => setSongName(e.target.value)}
+              placeholder="Enter song name"
               required
-            >
-              <option value="">-- Select a table --</option>
-              {tables.map((table) => (
-                <option key={table} value={table}>
-                  {table}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
-          {selectedTable && columns.length > 0 && (
-            <div className="form-fields">
-              <h3>Enter Data:</h3>
-              <p style={{ color: '#666', fontSize: '0.9em', marginBottom: '15px' }}>
-                Note: Auto-generated columns (like IDs) are excluded and will be created automatically.
-              </p>
-              {columns.map((column) => (
-                <div key={column} className="form-group">
-                  <label htmlFor={`field-${column}`}>
-                    {column}:
-                  </label>
-                  <input
-                    id={`field-${column}`}
-                    type="text"
-                    value={formData[column] || ''}
-                    onChange={(e) => handleInputChange(column, e.target.value)}
-                    placeholder={`Enter ${column} (leave empty for NULL)`}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="form-group">
+            <label htmlFor="artist-name">Artist Name:</label>
+            <input
+              id="artist-name"
+              type="text"
+              value={artistName}
+              onChange={(e) => setArtistName(e.target.value)}
+              placeholder="Enter artist name"
+              required
+            />
+          </div>
 
-          <button type="submit" className="submit-button" disabled={loading || !selectedTable}>
+          <div className="form-group">
+            <label htmlFor="album-name">Album Name:</label>
+            <input
+              id="album-name"
+              type="text"
+              value={albumName}
+              onChange={(e) => setAlbumName(e.target.value)}
+              placeholder="Enter album name"
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="album-release-date">Album Release Date (optional):</label>
+            <input
+              id="album-release-date"
+              type="text"
+              value={albumReleaseDate}
+              onChange={(e) => setAlbumReleaseDate(e.target.value)}
+              placeholder="YYYY-MM-DD"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="album-description">Album Description (optional):</label>
+            <input
+              id="album-description"
+              type="text"
+              value={albumDescription}
+              onChange={(e) => setAlbumDescription(e.target.value)}
+              placeholder="Enter album description"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="track-length">Track Length (optional):</label>
+            <input
+              id="track-length"
+              type="text"
+              value={trackLength}
+              onChange={(e) => setTrackLength(e.target.value)}
+              placeholder="HH:MM:SS"
+            />
+          </div>
+
+          <button type="submit" className="submit-button" disabled={loading}>
             {loading ? 'Inserting...' : 'Insert Record'}
           </button>
         </form>
@@ -195,4 +159,3 @@ function Insert() {
 }
 
 export default Insert;
-
