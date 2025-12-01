@@ -43,9 +43,8 @@ function Search() {
   };
 
   return (
-    <div className="app-container">
-      <main className="main-content" style={{ maxWidth: '100%' }}>
-        <h2>Search Music</h2>
+    <main className="main-content">
+      <h2>Search Music</h2>
         <p style={{ color: '#666', marginBottom: '30px' }}>
           Search for songs, artists, or albums. Results will show tracks with their associated artists.
         </p>
@@ -117,8 +116,7 @@ function Search() {
             )}
           </div>
         )}
-      </main>
-    </div>
+    </main>
   );
 }
 

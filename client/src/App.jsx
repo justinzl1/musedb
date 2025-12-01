@@ -43,17 +43,19 @@ function App() {
   return (
     <Router>
       <div className="app">
-        <header className="app-header">
-          <h1>MuseDB Database Manager</h1>
-          <p>Manage your music database</p>
-        </header>
-        <Navigation />
-        <Routes>
-          <Route path="/" element={<ViewAllData />} />
-          <Route path="/search" element={<Search />} />
-          <Route path="/insert" element={<Insert />} />
-          <Route path="/delete" element={<Delete />} />
-        </Routes>
+        <div className="app-content-wrapper">
+          <header className="app-header">
+            <h1>MuseDB Database Manager</h1>
+            <p>Manage your music database</p>
+          </header>
+          <Navigation />
+          <Routes>
+            <Route path="/" element={<ViewAllData />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/insert" element={<Insert />} />
+            <Route path="/delete" element={<Delete />} />
+          </Routes>
+        </div>
       </div>
     </Router>
   );

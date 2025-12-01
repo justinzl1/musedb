@@ -46,9 +46,8 @@ function ViewAllData() {
   };
 
   return (
-    <div className="app-container">
-      <main className="main-content" style={{ maxWidth: '100%' }}>
-        <h2>Tracks with Artists & Albums</h2>
+    <main className="main-content">
+      <h2>Tracks with Artists & Albums</h2>
         <p style={{ color: '#666', marginBottom: '20px' }}>
           View all tracks with their associated artists and album information
         </p>
@@ -142,8 +141,7 @@ function ViewAllData() {
             )}
           </div>
         )}
-      </main>
-    </div>
+    </main>
   );
 }
 

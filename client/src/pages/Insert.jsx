@@ -63,9 +63,8 @@ function Insert() {
   };
 
   return (
-    <div className="app-container">
-      <main className="main-content" style={{ maxWidth: '100%' }}>
-        <h2>Insert Data</h2>
+    <main className="main-content">
+      <h2>Insert Data</h2>
         
         <form onSubmit={handleSubmit} className="insert-form">
           <div className="form-group">
@@ -153,8 +152,7 @@ function Insert() {
             <p>{success}</p>
           </div>
         )}
-      </main>
-    </div>
+    </main>
   );
 }
 

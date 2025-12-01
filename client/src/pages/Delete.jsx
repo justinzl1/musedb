@@ -102,9 +102,8 @@ function Delete() {
   };
 
   return (
-    <div className="app-container">
-      <main className="main-content" style={{ maxWidth: '100%' }}>
-        <h2>Delete Data</h2>
+    <main className="main-content">
+      <h2>Delete Data</h2>
         <p style={{ color: '#d32f2f', marginBottom: '20px' }}>
           Warning: This action cannot be undone. Please preview records before deleting.
         </p>
@@ -207,8 +206,7 @@ function Delete() {
             )}
           </div>
         )}
-      </main>
-    </div>
+    </main>
   );
 }
 
