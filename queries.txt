@@ -1,0 +1,77 @@
+-- SELECT
+
+SELECT 
+    ar.name as artist_name,
+    al.name as album_name,
+    al.release_date,
+    al.length as album_length,
+    COUNT(t.track_id) as track_count,
+    SUM(t.length) as calculated_length
+FROM Artist ar
+JOIN ArtistAlbum aa ON ar.artist_id = aa.artist_id
+JOIN Album al ON aa.album_id = al.album_id
+LEFT JOIN Track t ON al.album_id = t.album_id
+WHERE ar.name = 'Laufey'
+GROUP BY ar.artist_id, ar.name, al.album_id, al.name, al.release_date, al.length
+ORDER BY al.release_date;
+
+SELECT 
+    ar.name as artist_name,
+    n.name as nation,
+    STRING_AGG(g.name, ', ' ORDER BY g.name) as genres,
+    ar.description
+FROM Artist ar
+JOIN Nation n ON ar.nation_id = n.nation_id
+LEFT JOIN ArtistGenre ag ON ar.artist_id = ag.artist_id
+LEFT JOIN Genre g ON ag.genre_id = g.genre_id
+WHERE n.name = 'Iceland'
+GROUP BY ar.artist_id, ar.name, n.name, ar.description;
+
+
+-- INSERT
+
+INSERT INTO Track (name, length, album_id)
+VALUES ('Goddess', '00:02:58', 2)
+RETURNING track_id;
+
+
+-- UPDATE
+
+SELECT * FROM Album WHERE name = 'Bewitched';
+
+UPDATE Album
+SET 
+    release_date = '2023-09-08',
+    description = 'Second studio album featuring the hit single "From The Start"'
+WHERE name = 'Bewitched';
+
+
+
+-- DELETE
+
+
+DELETE FROM ArtistGenre
+WHERE artist_id = 1 
+AND genre_id = (SELECT genre_id FROM Genre WHERE name = 'test');
+
+
+-- TESTING
+
+INSERT INTO Genre (name, description)
+VALUES ('test', 'Test genre for demonstration purposes');
+
+INSERT INTO ArtistGenre (artist_id, genre_id)
+VALUES (1, (SELECT genre_id FROM Genre WHERE name = 'test'));
+
+SELECT * FROM ArtistGenre
+WHERE artist_id = 1 
+AND genre_id = (SELECT genre_id FROM Genre WHERE name = 'test');
+
+DELETE FROM ArtistGenre
+WHERE artist_id = 1 
+AND genre_id = (SELECT genre_id FROM Genre WHERE name = 'test');
+
+
+
+DELETE FROM Genre
+WHERE name = 'test';

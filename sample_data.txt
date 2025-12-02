@@ -1,0 +1,96 @@
+-- Insert Nation
+INSERT INTO Nation (name, comment) 
+VALUES ('Iceland', 'Nordic island nation in the North Atlantic');
+
+-- Insert Genres
+INSERT INTO Genre (name, description) 
+VALUES 
+    ('Jazz', 'Musical style rooted in improvisation and swing'),
+    ('Pop', 'Popular contemporary music'),
+    ('Indie', 'Independent music outside mainstream');
+
+-- Insert Artist (Laufey)
+INSERT INTO Artist (name, description, type, nation_id)
+VALUES (
+    'Laufey',
+    'Icelandic-Chinese singer-songwriter known for modern jazz-pop fusion',
+    'Solo Artist',
+    1  -- Iceland
+);
+
+-- Insert Albums
+INSERT INTO Album (name, description, release_date, length, album_num)
+VALUES 
+    (
+        'Everything I Know About Love',
+        'Debut studio album',
+        '2022-08-26',
+        '00:37:42',
+        1
+    ),
+    (
+        'Bewitched',
+        'Second studio album',
+        '2023-09-08',
+        '00:38:54',
+        2
+    ),
+    (
+        'A Night at the Symphony',
+        'Live album with Iceland Symphony Orchestra',
+        '2024-09-06',
+        '01:01:30',
+        3
+    );
+
+-- Insert Tracks for "Everything I Know About Love"
+INSERT INTO Track (name, length, album_id)
+VALUES 
+    ('Fragile', '00:03:22', 1),
+    ('Beautiful Stranger', '00:02:41', 1),
+    ('Valentine', '00:02:41', 1),
+    ('Above the Chinese Restaurant', '00:02:28', 1),
+    ('Dear Soulmate', '00:03:46', 1),
+    ('Everything I Know About Love', '00:03:11', 1),
+    ('Just Like Chet', '00:03:34', 1),
+    ('I Wish You Love', '00:02:37', 1),
+    ('Hi', '00:01:41', 1),
+    ('Night Light', '00:03:45', 1),
+    ('Let You Break My Heart Again', '00:04:19', 1),
+    ('Dance With You Tonight', '00:03:37', 1);
+
+-- Insert Tracks for "Bewitched" (selection)
+INSERT INTO Track (name, length, album_id)
+VALUES 
+    ('Dreamer', '00:02:45', 2),
+    ('Second Best', '00:03:18', 2),
+    ('Haunted', '00:02:21', 2),
+    ('Must Be Love', '00:02:50', 2),
+    ('While You Were Sleeping', '00:02:47', 2),
+    ('Lovesick', '00:02:35', 2),
+    ('California and Me', '00:03:33', 2),
+    ('Nocturne (Interlude)', '00:01:22', 2),
+    ('Promise', '00:03:11', 2),
+    ('From The Start', '00:03:00', 2),
+    ('Misty', '00:02:42', 2),
+    ('Serendipity', '00:02:27', 2),
+    ('Letter To My 13 Year Old Self', '00:03:25', 2),
+    ('Bewitched', '00:02:38', 2);
+
+-- Link Artist to Genres
+INSERT INTO ArtistGenre (artist_id, genre_id)
+VALUES 
+    (1, 1),  -- Laufey - Jazz
+    (1, 2),  -- Laufey - Pop
+    (1, 3);  -- Laufey - Indie
+
+-- Link Artist to Albums
+INSERT INTO ArtistAlbum (artist_id, album_id)
+VALUES 
+    (1, 1),  -- Laufey - Everything I Know About Love
+    (1, 2),  -- Laufey - Bewitched
+    (1, 3);  -- Laufey - A Night at the Symphony
+
+-- Link Artist to Tracks (all tracks from both albums)
+INSERT INTO ArtistTrack (artist_id, track_id)
+SELECT 1, track_id FROM Track WHERE album_id IN (1, 2, 3);
