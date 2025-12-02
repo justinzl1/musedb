@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-**For Node.js backend:**
+**For Node.js frontend:**
 - Node.js (v16 or higher)
 - npm
 
@@ -11,11 +11,11 @@
 - pip
 
 **Both require:**
-- Your Supabase database credentials (already in your `.env` file)
+- Your Supabase database credentials (our team will assist you with this)
 
 ## Setup Instructions
 
-### Option 1: Python Backend
+### Python Backend
 
 **Backend Setup (Run separately):**
 
@@ -71,26 +71,6 @@
 3. **Open your browser**:
    Navigate to `http://localhost:3000` to view the web app.
 
-### Option 2: Node.js Backend
-
-1. **Install dependencies** (run this from the project root):
-   ```bash
-   npm run install-all
-   ```
-   This will install dependencies for both the server and client.
-
-2. **Ensure your `.env` file is configured** (same as above)
-
-3. **Start the development servers**:
-   ```bash
-   npm run dev
-   ```
-   This will start both the Node.js backend server (port 3001) and frontend dev server (port 3000).
-
-4. **Open your browser**:
-   Navigate to `http://localhost:3000` to view the web app.
-
-
 ## Available Scripts
 
 **Python Backend (Recommended):**
@@ -102,8 +82,3 @@
 - `cd client && npm install` - Install frontend dependencies
 - `cd client && npm run dev` - Start frontend dev server
 - `cd client && npm run build` - Build for production
-
-**Node.js Backend (Alternative):**
-- `npm run dev` - Start Node.js backend + React frontend
-- `npm run server` - Start only the Node.js backend server
-- `npm run install-all` - Install all Node.js dependencies

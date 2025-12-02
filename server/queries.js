@@ -1,3 +1,4 @@
+// This returns the names of all tables
 export async function getTableNames(client) {
   const query = `
     SELECT table_name 
@@ -11,8 +12,10 @@ export async function getTableNames(client) {
   return result.rows.map(row => row.table_name);
 }
 
+// This returns the table's data: columns, rows, and count
 export async function getTableData(client, tableName) {
-  // Sanitize table name to prevent SQL injection
+
+  // Used to prevent SQL injection
   const sanitizedTableName = tableName.replace(/[^a-zA-Z0-9_]/g, '');
   
   if (!sanitizedTableName) {

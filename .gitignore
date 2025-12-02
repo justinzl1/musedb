@@ -2,10 +2,7 @@
 node_modules/
 client/node_modules/
 
-# Environment variables
-.env
-
-# Build outputs
+# Outputs
 client/dist/
 client/build/
 
@@ -17,8 +14,12 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-
+# Python Environment
 venv/
 /venv/
 .venv/
 /.venv/
+
+
+# Environment
+.env

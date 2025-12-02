@@ -8,61 +8,59 @@ from pathlib import Path
 from datetime import timedelta, date, datetime
 import json
 
-# Load .env from parent directory (project root)
+# Loads in the environment variables (from .env)
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(dotenv_path=env_path)
 
+# Create sthe Flask App and enable CORS
 app = Flask(__name__)
 CORS(app)
 
-# Database connection pool
+# Initialize the connection variable
 connection_pool = None
 
 def serialize_value(value):
-    """Convert non-JSON-serializable values to JSON-serializable formats"""
+    """Convert non-JSON values to JSON formats that we can use for our table"""
     if value is None:
         return None
+    # Converts the time to HH:MM:SS format
     elif isinstance(value, timedelta):
-        # Convert timedelta to string format (HH:MM:SS)
         total_seconds = int(value.total_seconds())
         hours = total_seconds // 3600
         minutes = (total_seconds % 3600) // 60
         seconds = total_seconds % 60
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    # Converts to ISO format string
     elif isinstance(value, (date, datetime)):
-        # Convert date/datetime to ISO format string
         return value.isoformat()
+    # Decodes bytes
     elif isinstance(value, (bytes, bytearray)):
-        # Convert bytes to string
         return value.decode('utf-8', errors='ignore')
+    # Good type
     else:
         return value
 
 def get_db_connection():
-    """Get a database connection from the pool"""
+    """Creates and gets the database connection (based on the pool connection -- from db.js)"""
     global connection_pool
     
     if connection_pool is None:
-        # Validate required environment variables
+        # Makes sure that all the required environment variables are set
         required_vars = ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']
         missing = [var for var in required_vars if not os.getenv(var)]
         
         if missing:
-            raise ValueError(f'Missing required environment variables: {", ".join(missing)}')
+            raise ValueError(f'Required Environment variables missing!')
         
         try:
-            # Get connection parameters
+            # Create the connection
             db_host = os.getenv('DB_HOST')
             db_port = int(os.getenv('DB_PORT', 5432))
             db_name = os.getenv('DB_NAME')
             db_user = os.getenv('DB_USER')
             db_password = os.getenv('DB_PASSWORD')
             
-            # Debug: print connection info (without password)
-            print(f"Connecting to: {db_host}:{db_port}, database: {db_name}, user: {db_user}")
-            
-            # Build connection string with SSL mode for Supabase
-            # psycopg2 accepts connection string format
+            # Connection string for supabase
             conn_string = (
                 f"host={db_host} "
                 f"port={db_port} "
@@ -72,32 +70,32 @@ def get_db_connection():
                 f"sslmode=require"
             )
             
-            connection_pool = psycopg2.pool.SimpleConnectionPool(
-                1, 20, conn_string
-            )
-        except Exception as e:
-            raise ConnectionError(f'Failed to create connection pool: {str(e)}')
-    
-    return connection_pool.getconn()
+            # Tries to create the connection
+            connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, conn_string)
+    except Exception as e:
+        # If there is an error, print it and describe why
+        raise ConnectionError(f'Failed to create connection pool: {str(e)}')    return connection_pool.getconn()
 
 def release_db_connection(conn):
-    """Release a database connection back to the pool"""
+    """Release the database connection"""
     if connection_pool and conn:
         connection_pool.putconn(conn)
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Health check endpoint"""
+    """Makes sure that the server is running"""
     return jsonify({'status': 'ok', 'message': 'Server is running'})
 
 @app.route('/api/tables', methods=['GET'])
 def get_tables():
-    """Get all table names from the database"""
+    """Makes sure that one can get all table names from the database"""
     conn = None
     try:
+        # Get the connection
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Query to get all table names
         query = """
             SELECT table_name 
             FROM information_schema.tables 
@@ -110,31 +108,36 @@ def get_tables():
         tables = [row[0] for row in cursor.fetchall()]
         
         cursor.close()
+        # Returns list of tables
         return jsonify(tables)
         
     except Exception as e:
-        print(f'Error fetching tables: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error fetching tables!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/tracks/joined', methods=['GET'])
 def get_tracks_joined():
-    """Get tracks with their associated artists and albums (joined view)"""
+    """Get tracks with their associated artists and albums"""
     conn = None
     try:
+        # Get limit and offset from query parameters
         limit = request.args.get('limit', type=int, default=15)
         offset = request.args.get('offset', type=int, default=0)
         
+        # Get the connection
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get total count first
+        # Get total count
         count_query = "SELECT COUNT(DISTINCT t.track_id) FROM Track t;"
         cursor.execute(count_query)
         total_count = cursor.fetchone()[0]
         
-        # Get tracks with their albums and artists
+        # Get tracks with their albums and artists - SQL Query
         query = """
             SELECT DISTINCT
                 t.track_id,
@@ -150,15 +153,16 @@ def get_tracks_joined():
             LIMIT %s OFFSET %s;
         """
         
+        # Execute the main query and gets the output
         cursor.execute(query, (limit, offset))
         tracks = cursor.fetchall()
         
-        # For each track, get all associated artists
+        # Get all associated artists
         results = []
         for track in tracks:
             track_id = track[0]
             
-            # Get all artists for this track
+            # Get all artists for this track - SQL Query
             artist_query = """
                 SELECT ar.artist_id, ar.name, ar.type, ar.description
                 FROM Artist ar
@@ -169,7 +173,7 @@ def get_tracks_joined():
             cursor.execute(artist_query, (track_id,))
             artists = cursor.fetchall()
             
-            # Format artists
+            # Formats the artists
             artist_list = []
             for artist in artists:
                 artist_list.append({
@@ -179,7 +183,7 @@ def get_tracks_joined():
                     'description': artist[3]
                 })
             
-            # Also get album artists
+            # Get album artists - SQL Query
             album_artist_query = """
                 SELECT ar.artist_id, ar.name, ar.type, ar.description
                 FROM Artist ar
@@ -190,7 +194,7 @@ def get_tracks_joined():
             cursor.execute(album_artist_query, (track[3],))
             album_artists = cursor.fetchall()
             
-            # Combine track artists and album artists, removing duplicates
+            # Combine track artists and album artists
             all_artists = {artist[0]: {
                 'artist_id': artist[0],
                 'name': artist[1],
@@ -198,6 +202,7 @@ def get_tracks_joined():
                 'description': artist[3]
             } for artist in artists}
             
+            # Add album artists, avoiding duplicates
             for artist in album_artists:
                 if artist[0] not in all_artists:
                     all_artists[artist[0]] = {
@@ -207,6 +212,7 @@ def get_tracks_joined():
                         'description': artist[3]
                     }
             
+            # Append the track with this info
             results.append({
                 'track_id': track_id,
                 'track_name': track[1],
@@ -220,6 +226,7 @@ def get_tracks_joined():
         
         cursor.close()
         
+        # Return the results with the info
         return jsonify({
             'results': results,
             'total_count': total_count,
@@ -229,17 +236,19 @@ def get_tracks_joined():
         })
         
     except Exception as e:
-        print(f'Error fetching joined tracks: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error fetching joined tracks!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/tables/<table_name>', methods=['GET'])
 def get_table_data(table_name):
-    """Get data from a specific table"""
+    """Get data from a specific table -- based on the table name"""
     conn = None
     try:
-        # Sanitize table name to prevent SQL injection
+        # Sanitize table name so there is no SQL injection
         sanitized_table_name = ''.join(c for c in table_name if c.isalnum() or c == '_')
         
         if not sanitized_table_name:
@@ -248,14 +257,14 @@ def get_table_data(table_name):
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get column names and data
+        # Get data from the table - SQL Query
         query = f"SELECT * FROM {sanitized_table_name} ORDER BY 1 LIMIT 1000;"
         cursor.execute(query)
         
         columns = [desc[0] for desc in cursor.description]
         rows = cursor.fetchall()
         
-        # Convert rows to dictionaries and serialize non-JSON values
+        # Convert rows to dictionaries and to JSON values
         data = []
         for row in rows:
             row_dict = {}
@@ -264,7 +273,8 @@ def get_table_data(table_name):
             data.append(row_dict)
         
         cursor.close()
-        
+
+        # Return the data
         return jsonify({
             'columns': columns,
             'rows': data,
@@ -272,26 +282,29 @@ def get_table_data(table_name):
         })
         
     except Exception as e:
-        print(f'Error fetching data from {table_name}: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error fetching data from {table_name}!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/tables/<table_name>/columns', methods=['GET'])
 def get_table_columns(table_name):
-    """Get column metadata for a specific table"""
+    """Get column information for a specific table"""
     conn = None
     try:
-        # Sanitize table name to prevent SQL injection
+        # Sanitize table name so there is no SQL injection
         sanitized_table_name = ''.join(c for c in table_name if c.isalnum() or c == '_')
         
+        # If not sanitized, returns  400
         if not sanitized_table_name:
             return jsonify({'error': 'Invalid table name'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get column metadata including identity information
+        # Get column information - SQL Query
         query = """
             SELECT 
                 column_name,
@@ -304,6 +317,7 @@ def get_table_columns(table_name):
         """
         cursor.execute(query, (sanitized_table_name,))
         
+        # Formats the columns
         columns = []
         for row in cursor.fetchall():
             columns.append({
@@ -314,23 +328,27 @@ def get_table_columns(table_name):
             })
         
         cursor.close()
+
+        # Return the columns
         return jsonify(columns)
         
     except Exception as e:
-        print(f'Error fetching columns from {table_name}: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error fetching columns from {table_name}!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/all-data', methods=['GET'])
 def get_all_data():
-    """Get all data from all tables"""
+    """Get all data from all tables within the database """
     conn = None
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get all table names
+        # Get all table names - SQL Query
         query = """
             SELECT table_name 
             FROM information_schema.tables 
@@ -339,15 +357,19 @@ def get_all_data():
             ORDER BY table_name;
         """
         cursor.execute(query)
+
+        # Stores all table names
         tables = [row[0] for row in cursor.fetchall()]
         
         all_data = {}
         
+        # For each table, get the data
         for table in tables:
+            # Get data from the table - SQL Query
             cursor.execute(f"SELECT * FROM {table} ORDER BY 1 LIMIT 1000;")
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
-            # Convert rows to dictionaries and serialize non-JSON values
+            # Convert rows to dictionaries and stores JSON values
             data = []
             for row in rows:
                 row_dict = {}
@@ -361,23 +383,29 @@ def get_all_data():
             }
         
         cursor.close()
+
+        # Return all data
         return jsonify(all_data)
         
     except Exception as e:
-        print(f'Error fetching all data: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error fetching all data!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/search', methods=['POST'])
 def search_data():
-    """Search for records in a table by column value"""
+    """Search for records in a table based on the column value"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get table, column, and search value
         table_name = data.get('table')
         column_name = data.get('column')
         search_value = data.get('value')
@@ -385,7 +413,7 @@ def search_data():
         if not all([table_name, column_name, search_value]):
             return jsonify({'error': 'Missing required fields: table, column, value'}), 400
         
-        # Sanitize table and column names
+        # Makes sure to sanitize table and column names for no SQL injection
         sanitized_table = ''.join(c for c in table_name if c.isalnum() or c == '_')
         sanitized_column = ''.join(c for c in column_name if c.isalnum() or c == '_')
         
@@ -395,14 +423,14 @@ def search_data():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Use parameterized query for the search value to prevent SQL injection
+        # Make sure to use parameterized query to prevent SQL injection - SQL Query
         query = f'SELECT * FROM {sanitized_table} WHERE {sanitized_column}::text ILIKE %s ORDER BY 1;'
         cursor.execute(query, (f'%{search_value}%',))
         
         columns = [desc[0] for desc in cursor.description]
         rows = cursor.fetchall()
         
-        # Convert rows to dictionaries and serialize non-JSON values
+        # Convert rows to dictionaries and changes to JSON values
         data_list = []
         for row in rows:
             row_dict = {}
@@ -412,6 +440,7 @@ def search_data():
         
         cursor.close()
         
+        # Return the search results
         return jsonify({
             'columns': columns,
             'rows': data_list,
@@ -419,20 +448,24 @@ def search_data():
         })
         
     except Exception as e:
-        print(f'Error searching data: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error searching data!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/search/music', methods=['POST'])
 def search_music():
-    """Search for music across tracks, artists, and albums"""
+    """Search for music across tracks, artists, and albums using a query"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get the search query
         search_query = data.get('query')
         if not search_query:
             return jsonify({'error': 'Missing search query'}), 400
@@ -440,11 +473,7 @@ def search_music():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Search across tracks, artists, and albums
-        # This query finds tracks where:
-        # - Track name matches
-        # - OR any associated artist name matches
-        # - OR album name matches
+        # Search across tracks, artists, and albums - SQL Query
         query = """
             SELECT DISTINCT
                 t.track_id,
@@ -473,7 +502,7 @@ def search_music():
         results = []
         track_artists_map = {}
         
-        # First pass: collect track info
+        # First collects track info
         for track in tracks:
             track_id = track[0]
             if track_id not in track_artists_map:
@@ -487,7 +516,7 @@ def search_music():
                     'artists': []
                 }
         
-        # Second pass: get all artists for each track
+        # Second gets all artists for each track
         for track_id in track_artists_map.keys():
             artist_query = """
                 SELECT ar.name
@@ -500,15 +529,20 @@ def search_music():
             artists = [row[0] for row in cursor.fetchall()]
             track_artists_map[track_id]['artists'] = artists
         
+        # Lists the final results
         results = list(track_artists_map.values())
         
         cursor.close()
+
+        # Return the search results
         return jsonify(results)
         
     except Exception as e:
-        print(f'Error searching music: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error searching music!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/insert', methods=['POST'])
@@ -516,17 +550,19 @@ def insert_data():
     """Insert a new record into a table"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get table name and data to insert
         table_name = data.get('table')
         insert_data_dict = data.get('data')
         
         if not table_name or not insert_data_dict:
             return jsonify({'error': 'Missing required fields: table, data'}), 400
         
-        # Sanitize table name
+        # Sanitize table name to prevent SQL injection
         sanitized_table = ''.join(c for c in table_name if c.isalnum() or c == '_')
         if not sanitized_table:
             return jsonify({'error': 'Invalid table name'}), 400
@@ -534,7 +570,7 @@ def insert_data():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get column names and check for identity columns
+        # Query to get column info for the table - SQL Query
         cursor.execute(f"""
             SELECT 
                 c.column_name, 
@@ -545,32 +581,34 @@ def insert_data():
             ORDER BY c.ordinal_position;
         """, (sanitized_table,))
         
+        # Get column names, types, and identity columns
         table_columns = cursor.fetchall()
         column_names = [col[0] for col in table_columns]
         column_types = {col[0]: col[1] for col in table_columns}
         identity_columns = {col[0] for col in table_columns if col[2]}
         
-        # Filter out columns that don't exist in the table and exclude identity columns
+        # Filter out columns that don't exist
         valid_data = {k: v for k, v in insert_data_dict.items() 
                      if k in column_names and k not in identity_columns}
         
-        # Also filter out empty values for non-identity columns (they'll be NULL)
+        # Also filter out empty values
         filtered_data = {}
         for k, v in valid_data.items():
             if v is not None and v != '':
                 filtered_data[k] = v
         
         if not filtered_data:
-            return jsonify({'error': 'No valid data provided (identity columns are auto-generated)'}), 400
+            return jsonify({'error': 'No valid data provided'}), 400
         
-        # Build INSERT query
+        # Build INSERT query - SQL Query
         columns = list(filtered_data.keys())
         placeholders = ', '.join(['%s'] * len(columns))
         column_names_str = ', '.join([f'"{col}"' for col in columns])
         
+        # Uses parameterized query to prevent SQL injection
         query = f'INSERT INTO {sanitized_table} ({column_names_str}) VALUES ({placeholders}) RETURNING *;'
         
-        # Prepare values, handling type conversion
+        # Prepare values while doing correct type conversion
         values = []
         for col in columns:
             val = filtered_data[col]
@@ -600,21 +638,24 @@ def insert_data():
         conn.commit()
         cursor.close()
         
+        # Return the inserted record
         return jsonify({
             'success': True,
             'message': 'Record inserted successfully',
             'data': inserted_row
         })
         
+    # If there is an error then rollback; print it and return Error
     except psycopg2.IntegrityError as e:
         conn.rollback()
         return jsonify({'error': f'Database constraint violation: {str(e)}'}), 400
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f'Error inserting data: {str(e)}')
+        print(f'Error inserting data!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/delete', methods=['DELETE'])
@@ -622,10 +663,12 @@ def delete_data():
     """Delete records from a table matching a column value"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get table name, column, and value to delete
         table_name = data.get('table')
         column_name = data.get('column')
         delete_value = data.get('value')
@@ -633,7 +676,7 @@ def delete_data():
         if not all([table_name, column_name, delete_value]):
             return jsonify({'error': 'Missing required fields: table, column, value'}), 400
         
-        # Sanitize table and column names
+        # Sanitize table and column names to prevent SQL injection
         sanitized_table = ''.join(c for c in table_name if c.isalnum() or c == '_')
         sanitized_column = ''.join(c for c in column_name if c.isalnum() or c == '_')
         
@@ -647,71 +690,78 @@ def delete_data():
         query = f'DELETE FROM {sanitized_table} WHERE {sanitized_column}::text ILIKE %s;'
         cursor.execute(query, (f'%{delete_value}%',))
         
+        # Get number of deleted records
         deleted_count = cursor.rowcount
         conn.commit()
         cursor.close()
         
+        # Return the result
         return jsonify({
             'success': True,
             'message': f'Deleted {deleted_count} record(s)',
             'deleted_count': deleted_count
         })
-        
+    
+    # If there is an error then rollback; print it and return Error
     except psycopg2.IntegrityError as e:
         conn.rollback()
         return jsonify({'error': f'Cannot delete due to foreign key constraint: {str(e)}'}), 400
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f'Error deleting data: {str(e)}')
+        print(f'Error deleting data!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/insert/music', methods=['POST'])
 def insert_music():
-    """Insert a song with artist and album"""
+    """Insert a song with artist and album (and will add in the nation and genre if given)"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get the details from the request
         song_name = data.get('song_name')
         artist_name = data.get('artist_name')
         album_name = data.get('album_name')
         album_release_date = data.get('album_release_date')
         album_description = data.get('album_description')
         track_length = data.get('track_length')
-        
-        # New fields
         nation_name = data.get('nation_name')
         nation_comment = data.get('nation_comment')
         artist_description = data.get('artist_description')
         genre_name = data.get('genre_name')
         genre_description = data.get('genre_description')
         
+        # Make sure all required information is present
         if not all([song_name, artist_name, album_name]):
             return jsonify({'error': 'Song name, artist name, and album name are required'}), 400
         
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Handle Nation (Get or Create)
+        # Handles Nation if not cucrently within the DB
         nation_id = None
         if nation_name:
+            # Sees if the nation already exists
             cursor.execute("SELECT nation_id FROM Nation WHERE name ILIKE %s;", (nation_name,))
             nation_row = cursor.fetchone()
             if nation_row:
                 nation_id = nation_row[0]
             else:
+                # Adds the new nation in
                 cursor.execute(
                     "INSERT INTO Nation (name, comment) VALUES (%s, %s) RETURNING nation_id;",
                     (nation_name, nation_comment)
                 )
                 nation_id = cursor.fetchone()[0]
         
-        # Get or create artist
+        # Handles Artist if not currently within the DB
         cursor.execute("SELECT artist_id FROM Artist WHERE name ILIKE %s;", (artist_name,))
         artist_row = cursor.fetchone()
         if artist_row:
@@ -725,27 +775,29 @@ def insert_music():
                 if not nation_row:
                     return jsonify({'error': 'No nation found in database and none provided. Please add a nation.'}), 400
                 nation_id = nation_row[0]
-                
+            
+            # Insert
             cursor.execute(
                 "INSERT INTO Artist (name, description, nation_id) VALUES (%s, %s, %s) RETURNING artist_id;",
                 (artist_name, artist_description, nation_id)
             )
             artist_id = cursor.fetchone()[0]
             
-        # Handle Genre (Get or Create and Link to Artist)
+        # Handles Genre if not cucrently within the DB
         if genre_name:
+            # Tries to select the Genre
             cursor.execute("SELECT genre_id FROM Genre WHERE name ILIKE %s;", (genre_name,))
             genre_row = cursor.fetchone()
             if genre_row:
                 genre_id = genre_row[0]
             else:
+                # If not in the DB, then insert it in
                 cursor.execute(
                     "INSERT INTO Genre (name, description) VALUES (%s, %s) RETURNING genre_id;",
                     (genre_name, genre_description)
                 )
                 genre_id = cursor.fetchone()[0]
             
-            # Link Artist to Genre
             cursor.execute(
                 "SELECT 1 FROM ArtistGenre WHERE artist_id = %s AND genre_id = %s;",
                 (artist_id, genre_id)
@@ -756,19 +808,20 @@ def insert_music():
                     (artist_id, genre_id)
                 )
         
-        # Get or create album
+        # Handles Album if not cucrently within the DB -- Tries to get the Album
         cursor.execute("SELECT album_id FROM Album WHERE name ILIKE %s;", (album_name,))
         album_row = cursor.fetchone()
         if album_row:
             album_id = album_row[0]
         else:
+            # If the album is not there, then add it in
             cursor.execute(
                 "INSERT INTO Album (name, release_date, description) VALUES (%s, %s, %s) RETURNING album_id;",
                 (album_name, album_release_date if album_release_date else None, album_description if album_description else None)
             )
             album_id = cursor.fetchone()[0]
         
-        # Link artist to album if not already linked
+        # Link artist to album
         cursor.execute(
             "SELECT 1 FROM ArtistAlbum WHERE artist_id = %s AND album_id = %s;",
             (artist_id, album_id)
@@ -779,7 +832,7 @@ def insert_music():
                 (artist_id, album_id)
             )
         
-        # Check if track already exists in this album
+        # Check if track already exists in the album, if not then add
         cursor.execute(
             "SELECT track_id FROM Track WHERE name ILIKE %s AND album_id = %s;",
             (song_name, album_id)
@@ -790,7 +843,7 @@ def insert_music():
             track_id = track_row[0]
             message = 'Song already exists in album'
         else:
-            # Create track
+            # Create track and then adds to the DB
             cursor.execute(
                 "INSERT INTO Track (name, length, album_id) VALUES (%s, %s, %s) RETURNING track_id;",
                 (song_name, track_length if track_length else None, album_id)
@@ -798,7 +851,7 @@ def insert_music():
             track_id = cursor.fetchone()[0]
             message = 'Song inserted successfully'
         
-        # Link artist to track if not already linked
+        # Link artist to track
         cursor.execute(
             "SELECT 1 FROM ArtistTrack WHERE artist_id = %s AND track_id = %s;",
             (artist_id, track_id)
@@ -812,12 +865,14 @@ def insert_music():
         conn.commit()
         cursor.close()
         
+        # Return the Json data
         return jsonify({
             'success': True,
             'message': message,
             'track_id': track_id
         })
         
+    # If there is an error then rollback; print it and return Error
     except psycopg2.IntegrityError as e:
         if conn:
             conn.rollback()
@@ -825,20 +880,23 @@ def insert_music():
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f'Error inserting music: {str(e)}')
+        print(f'Error inserting music!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/delete/preview', methods=['POST'])
 def delete_preview():
-    """Preview what will be deleted"""
+    """Preview what will be deleted so that the user knows the impact"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
+        # Get delete type and value
         delete_type = data.get('type')
         delete_value = data.get('value')
         
@@ -848,13 +906,15 @@ def delete_preview():
         conn = get_db_connection()
         cursor = conn.cursor()
         
+        # Depending on delete type, prepare the preview - SQL Queries
         if delete_type == 'song':
+            # Get song and count affected records
             query = "SELECT * FROM Track WHERE name ILIKE %s;"
             cursor.execute(query, (f'%{delete_value}%',))
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             
-            # Count affected records (just the track)
+            # Count affected
             affected_count = len(rows)
             
         elif delete_type == 'artist':
@@ -884,23 +944,24 @@ def delete_preview():
             )
             album_count = cursor.fetchone()[0]
             
-            # Count tracks in those albums (will be deleted when albums are deleted)
+            # Count tracks in those albums
             cursor.execute(
                 "SELECT COUNT(*) FROM Track t INNER JOIN Album a ON t.album_id = a.album_id INNER JOIN ArtistAlbum aa ON a.album_id = aa.album_id WHERE aa.artist_id = ANY(%s);",
                 (artist_ids,)
             )
             album_track_count = cursor.fetchone()[0]
             
-            # Total affected: artists + albums + tracks (tracks from ArtistTrack + tracks from albums)
+            # Returns the total affected count
             affected_count = len(artists) + album_count + track_count + album_track_count
             
+            # Return the data
             query = "SELECT * FROM Artist WHERE name ILIKE %s;"
             cursor.execute(query, (f'%{delete_value}%',))
             columns = [desc[0] for desc in cursor.description]
             rows = cursor.fetchall()
             
         elif delete_type == 'album':
-            # Get album and count related tracks (will be cascade deleted)
+            # Get album and count related tracks
             cursor.execute("SELECT album_id FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
             albums = cursor.fetchall()
             if not albums:
@@ -912,16 +973,17 @@ def delete_preview():
             
             album_ids = [a[0] for a in albums]
             
-            # Count tracks that will be cascade deleted
+            # Count tracks that will be deleted
             cursor.execute(
                 "SELECT COUNT(*) FROM Track WHERE album_id = ANY(%s);",
                 (album_ids,)
             )
             track_count = cursor.fetchone()[0]
             
-            # Total: albums + tracks (tracks will be cascade deleted)
+            # Get total affected count
             affected_count = len(albums) + track_count
             
+            # Return the data
             query = "SELECT * FROM Album WHERE name ILIKE %s;"
             cursor.execute(query, (f'%{delete_value}%',))
             columns = [desc[0] for desc in cursor.description]
@@ -929,7 +991,7 @@ def delete_preview():
         else:
             return jsonify({'error': 'Invalid delete type'}), 400
         
-        # Convert rows to dictionaries
+        # Convert rows to dictionaries and to JSON values
         data_list = []
         for row in rows:
             row_dict = {}
@@ -939,6 +1001,7 @@ def delete_preview():
         
         cursor.close()
         
+        # Return the data
         return jsonify({
             'columns': columns,
             'rows': data_list,
@@ -946,9 +1009,11 @@ def delete_preview():
         })
         
     except Exception as e:
-        print(f'Error previewing delete: {str(e)}')
+        # If there is an error, print it and return Error 500
+        print(f'Error previewing delete!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 @app.route('/api/delete/music', methods=['DELETE'])
@@ -956,10 +1021,12 @@ def delete_music():
     """Delete a song, artist, or album"""
     conn = None
     try:
+        # Get the JSON data from the request
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No data provided'}), 400
-        
+
+        # Get delete type and value
         delete_type = data.get('type')
         delete_value = data.get('value')
         
@@ -972,24 +1039,24 @@ def delete_music():
         deleted_count = 0
         
         if delete_type == 'song':
+            # Delete the track
             cursor.execute("DELETE FROM Track WHERE name ILIKE %s;", (f'%{delete_value}%',))
             deleted_count = cursor.rowcount
             
         elif delete_type == 'artist':
-            # First, get the artist IDs
+            # Get the artist IDs
             cursor.execute("SELECT artist_id FROM Artist WHERE name ILIKE %s;", (f'%{delete_value}%',))
             artist_ids = [row[0] for row in cursor.fetchall()]
             
             if artist_ids:
-                # Get album IDs associated with this artist (before deletion)
+                # Get album IDs from this artist
                 cursor.execute(
                     "SELECT DISTINCT album_id FROM ArtistAlbum WHERE artist_id = ANY(%s);",
                     (artist_ids,)
                 )
                 album_ids = [row[0] for row in cursor.fetchall()]
                 
-                # Delete all tracks associated with this artist that are NOT in albums we're deleting
-                # (tracks in albums will be cascade deleted when we delete albums)
+                # Delete all tracks associated with this artist
                 if album_ids:
                     cursor.execute(
                         """DELETE FROM Track 
@@ -998,7 +1065,7 @@ def delete_music():
                         (artist_ids, album_ids)
                     )
                 else:
-                    # No albums, so delete all tracks associated with this artist
+                    # No albums, so delete all tracks
                     cursor.execute(
                         "DELETE FROM Track WHERE track_id IN (SELECT track_id FROM ArtistTrack WHERE artist_id = ANY(%s));",
                         (artist_ids,)
@@ -1015,14 +1082,15 @@ def delete_music():
                 else:
                     albums_deleted = 0
                 
-                # Now delete the artist (this will cascade delete ArtistTrack and ArtistAlbum relationships)
+                # Delete the artist and cascade delete the rest
                 cursor.execute("DELETE FROM Artist WHERE artist_id = ANY(%s);", (artist_ids,))
                 artists_deleted = cursor.rowcount
                 
+                # Return JSON response
                 deleted_count = artists_deleted + albums_deleted + tracks_deleted
             
         elif delete_type == 'album':
-            # Delete album - this will cascade delete tracks due to ON DELETE CASCADE
+            # Delete the album and cascade delete the rest
             cursor.execute("DELETE FROM Album WHERE name ILIKE %s;", (f'%{delete_value}%',))
             deleted_count = cursor.rowcount
         else:
@@ -1031,12 +1099,14 @@ def delete_music():
         conn.commit()
         cursor.close()
         
+        # Return JSON response
         return jsonify({
             'success': True,
             'message': f'Deleted {deleted_count} record(s)',
             'deleted_count': deleted_count
         })
-        
+    
+    # If there is a constraint violation, rollback and return Error 400
     except psycopg2.IntegrityError as e:
         if conn:
             conn.rollback()
@@ -1044,12 +1114,14 @@ def delete_music():
     except Exception as e:
         if conn:
             conn.rollback()
-        print(f'Error deleting music: {str(e)}')
+        print(f'Error deleting music!')
         return jsonify({'error': str(e)}), 500
     finally:
+        # Kills DB Connection
         release_db_connection(conn)
 
 if __name__ == '__main__':
+    # Starts the server and the connection
     port = int(os.getenv('PORT', 3001))
     print(f'Server running on http://localhost:{port}')
     app.run(host='0.0.0.0', port=port, debug=True)

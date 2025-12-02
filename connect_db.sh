@@ -1,22 +1,17 @@
 #!/bin/bash
 
-MAX_RETRIES=30        # 0 = infinite
+MAX_RETRIES=5        # 0 = infinite
 RETRY_INTERVAL=10     # seconds between retries
 
-# --- Load Environment Variables ---
+# Load Environment Variables file and make sure they are found
 if [ ! -f ".env" ]; then
     echo "Error: .env file not found!"
-    echo "Please create a .env file with variables:"
-    echo "DB_HOST=your_host"
-    echo "DB_PORT=5432"
-    echo "DB_NAME=your_database"
-    echo "DB_USER=your_username"
-    echo "DB_PASSWORD=your_password"
     exit 1
 fi
 
 source .env
 
+# Comment if they are not there or wrong
 if [ -z "$DB_HOST" ] || [ -z "$DB_NAME" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
     echo "Error: Missing required environment variables in .env!"
     exit 1
@@ -40,19 +35,15 @@ attempt=1
 while true; do
     echo "[Attempt $attempt] Trying to connect to $DB_HOST:$DB_PORT ..."
     if psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" --set=sslmode=require -c '\q' 2>/dev/null; then
-        echo "✅ Connection successful!"
-        echo ""
-        echo "Launching interactive psql shell..."
-        echo ""
-        # Drop into interactive shell
+        echo "Launching psql"
         psql -h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" --set=sslmode=require
         break
     else
-        echo "❌ Connection failed. Retrying in ${RETRY_INTERVAL}s..."
+        echo "Connection failed. Retrying in ${RETRY_INTERVAL} seconds..."
     fi
 
     if [ "$MAX_RETRIES" -ne 0 ] && [ "$attempt" -ge "$MAX_RETRIES" ]; then
-        echo "❗ Reached max retries ($MAX_RETRIES). Exiting."
+        echo "Reached max retries"
         break
     fi
 
