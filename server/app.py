@@ -75,7 +75,7 @@ def get_db_connection():
         except Exception as e:
         # If there is an error, print it and describe why
             raise ConnectionError(f'Failed to create connection pool: {str(e)}')    
-        return connection_pool.getconn()
+    return connection_pool.getconn()
 
 def release_db_connection(conn):
     """Release the database connection"""
