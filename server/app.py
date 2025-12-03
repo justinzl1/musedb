@@ -72,9 +72,10 @@ def get_db_connection():
             
             # Tries to create the connection
             connection_pool = psycopg2.pool.SimpleConnectionPool(1, 20, conn_string)
-    except Exception as e:
+        except Exception as e:
         # If there is an error, print it and describe why
-        raise ConnectionError(f'Failed to create connection pool: {str(e)}')    return connection_pool.getconn()
+            raise ConnectionError(f'Failed to create connection pool: {str(e)}')    
+        return connection_pool.getconn()
 
 def release_db_connection(conn):
     """Release the database connection"""
