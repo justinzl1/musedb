@@ -14,7 +14,7 @@
 - Your Supabase database credentials (our team will assist you with this)
 
 ## Setup Instructions
-
+NOTE: For best results on Windows, please use WSL to test connection with the bash scripts.
 ### Python Backend
 
 **Backend Setup (Run separately):**
