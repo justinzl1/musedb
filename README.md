@@ -22,11 +22,6 @@
 1. **Navigate to server directory and set up virtual environment**:
    ```bash
    cd server
-   ./setup.sh
-   ```
-   Or manually:
-   ```bash
-   cd server
    python3 -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
@@ -42,15 +37,9 @@
    DB_PASSWORD=your_password
    ```
 
-3. **Run the backend server**:
+3. **Run the backend server with python environment**:
    ```bash
-   # From the server directory
-   source venv/bin/activate
    python3 app.py
-   ```
-   Or use the run script:
-   ```bash
-   ./run.sh
    ```
    The backend will run on `http://localhost:3001`
 
@@ -70,15 +59,3 @@
 
 3. **Open your browser**:
    Navigate to `http://localhost:3000` to view the web app.
-
-## Available Scripts
-
-**Python Backend (Recommended):**
-- `cd server && ./setup.sh` - Set up virtual environment and install dependencies
-- `cd server && source venv/bin/activate && python3 app.py` - Run backend server
-- `cd server && ./run.sh` - Run backend server (shortcut)
-
-**Frontend:**
-- `cd client && npm install` - Install frontend dependencies
-- `cd client && npm run dev` - Start frontend dev server
-- `cd client && npm run build` - Build for production
