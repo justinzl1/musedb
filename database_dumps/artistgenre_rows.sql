@@ -1,0 +1,1 @@
+INSERT INTO "public"."artistgenre" ("artist_id", "genre_id") VALUES ('1', '1'), ('1', '2'), ('1', '3'), ('23', '9');
