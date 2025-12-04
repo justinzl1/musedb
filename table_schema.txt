@@ -41,21 +41,21 @@ CREATE TABLE Track (
 
 --  Relationship Tables
 
--- Artist & Genre (M:N)
+-- Artist & Genre
 CREATE TABLE ArtistGenre (
     artist_id INT NOT NULL REFERENCES Artist(artist_id) ON DELETE CASCADE,
     genre_id  INT NOT NULL REFERENCES Genre(genre_id)   ON DELETE CASCADE,
     PRIMARY KEY (artist_id, genre_id)
 );
 
--- Artist & Album (M:N)
+-- Artist & Album
 CREATE TABLE ArtistAlbum (
     artist_id INT NOT NULL REFERENCES Artist(artist_id) ON DELETE CASCADE,
     album_id  INT NOT NULL REFERENCES Album(album_id)   ON DELETE CASCADE,
     PRIMARY KEY (artist_id, album_id)
 );
 
--- Artist & Track (M:N)
+-- Artist & Track
 CREATE TABLE ArtistTrack (
     artist_id INT NOT NULL REFERENCES Artist(artist_id) ON DELETE CASCADE,
     track_id  INT NOT NULL REFERENCES Track(track_id)   ON DELETE CASCADE,
